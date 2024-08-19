@@ -78,6 +78,7 @@ rrr
     os.remove(video_path)  # Eliminar el archivo temporal después de su uso
     logging.debug("Temporary video removed.")
 
+    # Comentario
     is_alive = detect_blinks(frame_sequence)
     logging.debug(f"Is the subject alive? {is_alive}")
     return jsonify({"is_alive": is_alive})
