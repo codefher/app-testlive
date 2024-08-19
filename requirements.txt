@@ -1,0 +1,10 @@
+Flask
+numpy
+opencv-python-headless  # Usamos la versión headless que no requiere GUI
+scipy
+dlib
+Flask
+numpy
+scipy
+opencv-python-headless
+dlib

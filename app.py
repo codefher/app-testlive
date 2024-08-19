@@ -82,5 +82,6 @@ def process_video():
     logging.debug(f"Is the subject alive? {is_alive}")
     return jsonify({"is_alive": is_alive})
 
+# Esto debería ser lo último en tu archivo
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
