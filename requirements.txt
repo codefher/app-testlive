@@ -9,3 +9,4 @@ scipy
 opencv-python-headless
 dlib
 PyJWT
+flask-cors
