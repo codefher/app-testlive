@@ -10,3 +10,9 @@ opencv-python-headless
 dlib
 PyJWT
 flask-cors
+
+
+# pip install minio
+# sudo apt-get install libpq-dev
+# pip install psycopg2
+

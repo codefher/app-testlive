@@ -17,12 +17,14 @@ predictor = dlib.shape_predictor("models/shape_predictor_68_face_landmarks.dat")
 EYE_AR_THRESH = 0.25
 EYE_AR_CONSEC_FRAMES = 3
 
+
 def eye_aspect_ratio(eye):
     A = dist.euclidean(eye[1], eye[5])
     B = dist.euclidean(eye[2], eye[4])
     C = dist.euclidean(eye[0], eye[3])
     ear = (A + B) / (2.0 * C)
     return ear
+
 
 def detect_blinks(frame_sequence):
     blink_count = 0
@@ -52,13 +54,14 @@ def detect_blinks(frame_sequence):
     logging.debug(f"Total blinks counted: {blink_count}")
     return blink_count > 0
 
-@app.route('/process-video', methods=['POST'])
+
+@app.route("/process-video", methods=["POST"])
 def process_video():
-    video_file = request.files.get('video')
+    video_file = request.files.get("video")
     if not video_file:
         return jsonify({"error": "No video file provided"}), 400
 
-    video_path = 'temp_video.webm'
+    video_path = "temp_video.webm"
     video_file.save(video_path)
     logging.debug("Video saved locally.")
 
@@ -82,6 +85,7 @@ def process_video():
     logging.debug(f"Is the subject alive? {is_alive}")
     return jsonify({"is_alive": is_alive})
 
+
 # Esto debería ser lo último en tu archivo
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
