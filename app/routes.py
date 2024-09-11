@@ -4,7 +4,7 @@ from .auth import token_required
 from .services.face_detection import detect_blinks
 from .db.queries import (
     get_multimedia,
-    insert_multimedia,
+    insert_video_details,
 )  # Asegúrate de que esta ruta de importación es correcta
 import os
 import cv2
@@ -44,7 +44,7 @@ def configure_routes(app, url_prefix=""):
         ruta = data.get("ruta", "")
 
         try:
-            insert_multimedia(id_solicitud, tipo, respuesta, ruta)
+            insert_video_details(id_solicitud, tipo, respuesta, ruta)
             return (
                 jsonify({"success": True, "message": "Multimedia added successfully"}),
                 201,
@@ -65,7 +65,7 @@ def configure_routes(app, url_prefix=""):
             return jsonify({"error": str(e)}), 500
 
     @app.route(url_prefix + "/life-detection", methods=["POST"])
-    # @token_required  # Descomenta esto si quieres activar la autenticación vía token
+    @token_required  # Descomenta esto si quieres activar la autenticación vía token
     def process_video():
         # Obtener el archivo de video de la solicitud
         video_file = request.files.get("video")
@@ -94,14 +94,13 @@ def configure_routes(app, url_prefix=""):
         is_alive = detect_blinks(frame_sequence)
         logging.debug(f"Is the subject alive? {is_alive}")
 
-        # Guardar el video en MinIO
+        # Guardar el video en MinIO y obtener la URL de MinIO
         try:
-            video_file.seek(0)  # Reiniciar el puntero del archivo
-            video_data = video_file.read()  # Leer el archivo en memoria
-            video_stream = io.BytesIO(video_data)  # Convertir a BytesIO
+            video_file.seek(0)
+            video_data = video_file.read()
+            video_stream = io.BytesIO(video_data)
             video_name = video_file.filename
 
-            # Subir el archivo de video a MinIO
             minio_client.put_object(
                 MINIO_BUCKET_NAME,
                 video_name,
@@ -109,11 +108,22 @@ def configure_routes(app, url_prefix=""):
                 length=len(video_data),
                 content_type="video/webm",
             )
-
             logging.debug(f"Video uploaded to MinIO: {video_name}")
+
+            # Construir la ruta completa donde el video está guardado
+            video_url = f"htrrtp://{MINIO_ENDPOINT}/{MINIO_BUCKET_NAME}/{video_name}"
+
+            # Insertar detalles del video en la base de datos
+            insert_video_details(
+                id_solicitud=12, tipo="VIDEO", is_alive=is_alive, ruta=video_url
+            )  # Asumiendo que tienes id_solicitud disponible
+
         except S3Error as err:
             logging.error(f"Failed to upload video to MinIO: {err}")
             return jsonify({"error": "Failed to upload video"}), 500
+        except Exception as e:
+            logging.error(f"Error inserting video details: {e}")
+            return jsonify({"error": str(e)}), 500
 
         # Retornar el resultado de la detección de vida
         return jsonify({"is_alive": is_alive})
