@@ -4,7 +4,7 @@ FROM python:3.9-slim
 # Establecer el directorio de trabajo en el contenedor
 WORKDIR /app
 
-# Instalar todas las dependencias necesarias para dlib y OpenCV
+# Instalar todas las dependencias necesarias para dlib, OpenCV y otras bibliotecas
 RUN apt-get update && apt-get install -y \
     libsm6 \
     libxext6 \
@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     cmake \
     build-essential \
-    libopencv-dev
+    libopencv-dev \
+    libpq-dev  # necesaria para psycopg2
 
 # Copiar el archivo de requisitos e instalar las dependencias de Python
 COPY requirements.txt /app/

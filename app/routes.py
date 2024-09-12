@@ -113,9 +113,17 @@ def configure_routes(app, url_prefix=""):
             # Construir la ruta completa donde el video está guardado
             video_url = f"htrrtp://{MINIO_ENDPOINT}/{MINIO_BUCKET_NAME}/{video_name}"
 
+            # Usar split para obtener el id_solicitud
+            pId_solicitud = int(
+                video_name.split("_")[0]
+            )  # Esto dividirá el nombre y tomará el primer elemento
+
             # Insertar detalles del video en la base de datos
             insert_video_details(
-                id_solicitud=12, tipo="VIDEO", is_alive=is_alive, ruta=video_url
+                id_solicitud=pId_solicitud,
+                tipo="VIDEO",
+                is_alive=is_alive,
+                ruta=video_url,
             )  # Asumiendo que tienes id_solicitud disponible
 
         except S3Error as err:
