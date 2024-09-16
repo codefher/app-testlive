@@ -2,6 +2,8 @@
 from flask import jsonify, request
 from .auth import token_required
 from .services.face_detection import detect_blinks
+from .services.face_detection import adjust_gamma
+from .services.face_detection import is_frame_too_dark
 from .db.queries import (
     get_multimedia,
     insert_video_details,
@@ -67,32 +69,52 @@ def configure_routes(app, url_prefix=""):
     @app.route(url_prefix + "/life-detection", methods=["POST"])
     @token_required  # Descomenta esto si quieres activar la autenticación vía token
     def process_video():
-        # Obtener el archivo de video de la solicitud
         video_file = request.files.get("video")
         if not video_file:
-            return jsonify({"error": "No video file provided"}), 400
+            return jsonify({"error": "No se proporcionó un archivo de video"}), 400
 
-        # Guardar el video temporalmente en el servidor local
+        if not video_file.mimetype.startswith("video"):
+            return (
+                jsonify(
+                    {"error": "Tipo de archivo inválido. Por favor, sube un video."}
+                ),
+                400,
+            )
+
         video_path = "temp_video.webm"
         video_file.save(video_path)
-        logging.debug("Video saved locally.")
+        logging.debug("Video guardado localmente.")
 
-        # Procesar el video con OpenCV, por ejemplo, detectar blinks
+        cap = cv2.VideoCapture(video_path)
         frame_sequence = []
         frame_count = 0
-        cap = cv2.VideoCapture(video_path)
+
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
-            if frame_count % 5 == 0:  # Tomar un frame cada 5
-                frame_sequence.append(frame)
+            if frame_count % 5 == 0:  # Tomar muestra cada 5 frames
+                if is_frame_too_dark(frame):
+                    logging.debug("Frame demasiado oscuro, ajustando iluminación.")
+                    adjusted_frame = adjust_gamma(frame, gamma=2.0)
+                else:
+                    adjusted_frame = frame
+
+                gray = cv2.cvtColor(adjusted_frame, cv2.COLOR_BGR2GRAY)
+                gray = cv2.bilateralFilter(gray, d=5, sigmaColor=75, sigmaSpace=75)
+                frame_sequence.append(gray)
             frame_count += 1
 
         cap.release()
-        os.remove(video_path)  # Borrar el archivo local una vez procesado
+        os.remove(video_path)  # Eliminar el archivo temporal después de su uso
+        logging.debug("Video temporal eliminado.")
+
+        if not frame_sequence:
+            return jsonify({"error": "No se pudieron procesar frames del video."}), 400
+
         is_alive = detect_blinks(frame_sequence)
-        logging.debug(f"Is the subject alive? {is_alive}")
+        logging.debug(f"¿El sujeto está vivo? {is_alive}")
+        # return jsonify({"is_alive": is_alive})
 
         # Guardar el video en MinIO y obtener la URL de MinIO
         try:
