@@ -12,7 +12,7 @@ detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("models/shape_predictor_68_face_landmarks.dat")
 
 # Umbral y contador para detectar parpadeo
-EYE_AR_THRESH = 0.25
+EYE_AR_THRESH = 0.26
 EYE_AR_CONSEC_FRAMES = 3
 
 

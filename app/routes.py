@@ -67,7 +67,7 @@ def configure_routes(app, url_prefix=""):
             return jsonify({"error": str(e)}), 500
 
     @app.route(url_prefix + "/life-detection", methods=["POST"])
-    @token_required  # Descomenta esto si quieres activar la autenticación vía token
+    # @token_required  # Descomenta esto si quieres activar la autenticación vía token
     def process_video():
         video_file = request.files.get("video")
         if not video_file:
@@ -97,12 +97,12 @@ def configure_routes(app, url_prefix=""):
                 if is_frame_too_dark(frame):
                     logging.debug("Frame demasiado oscuro, ajustando iluminación.")
                     adjusted_frame = adjust_gamma(frame, gamma=2.0)
+                    gray = cv2.cvtColor(adjusted_frame, cv2.COLOR_BGR2GRAY)
+                    gray = cv2.bilateralFilter(gray, d=5, sigmaColor=75, sigmaSpace=75)
+                    frame_sequence.append(gray)
                 else:
-                    adjusted_frame = frame
+                    frame_sequence.append(frame)
 
-                gray = cv2.cvtColor(adjusted_frame, cv2.COLOR_BGR2GRAY)
-                gray = cv2.bilateralFilter(gray, d=5, sigmaColor=75, sigmaSpace=75)
-                frame_sequence.append(gray)
             frame_count += 1
 
         cap.release()
