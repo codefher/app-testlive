@@ -20,6 +20,7 @@ from .config import (
     MINIO_SECRET_KEY,
     MINIO_BUCKET_NAME,
     MINIO_SECURE,
+    FLAG_MINIO
 )
 
 
@@ -67,7 +68,7 @@ def configure_routes(app, url_prefix=""):
             return jsonify({"error": str(e)}), 500
 
     @app.route(url_prefix + "/life-detection", methods=["POST"])
-    # @token_required  # Descomenta esto si quieres activar la autenticación vía token
+    @token_required  # Descomenta esto si quieres activar la autenticación vía token
     def process_video():
         video_file = request.files.get("video")
         if not video_file:
@@ -97,12 +98,12 @@ def configure_routes(app, url_prefix=""):
                 if is_frame_too_dark(frame):
                     logging.debug("Frame demasiado oscuro, ajustando iluminación.")
                     adjusted_frame = adjust_gamma(frame, gamma=2.0)
-                    gray = cv2.cvtColor(adjusted_frame, cv2.COLOR_BGR2GRAY)
-                    gray = cv2.bilateralFilter(gray, d=5, sigmaColor=75, sigmaSpace=75)
-                    frame_sequence.append(gray)
                 else:
-                    frame_sequence.append(frame)
+                    adjusted_frame = frame
 
+                gray = cv2.cvtColor(adjusted_frame, cv2.COLOR_BGR2GRAY)
+                gray = cv2.bilateralFilter(gray, d=5, sigmaColor=75, sigmaSpace=75)
+                frame_sequence.append(gray)
             frame_count += 1
 
         cap.release()
@@ -116,44 +117,45 @@ def configure_routes(app, url_prefix=""):
         logging.debug(f"¿El sujeto está vivo? {is_alive}")
         # return jsonify({"is_alive": is_alive})
 
-        # Guardar el video en MinIO y obtener la URL de MinIO
-        try:
-            video_file.seek(0)
-            video_data = video_file.read()
-            video_stream = io.BytesIO(video_data)
-            video_name = video_file.filename
+        if FLAG_MINIO:
+            # Guardar el video en MinIO y obtener la URL de MinIO
+            try:
+                video_file.seek(0)
+                video_data = video_file.read()
+                video_stream = io.BytesIO(video_data)
+                video_name = video_file.filename
 
-            minio_client.put_object(
-                MINIO_BUCKET_NAME,
-                video_name,
-                video_stream,
-                length=len(video_data),
-                content_type="video/webm",
-            )
-            logging.debug(f"Video uploaded to MinIO: {video_name}")
+                minio_client.put_object(
+                    MINIO_BUCKET_NAME,
+                    video_name,
+                    video_stream,
+                    length=len(video_data),
+                    content_type="video/webm",
+                )
+                logging.debug(f"Video uploaded to MinIO: {video_name}")
 
-            # Construir la ruta completa donde el video está guardado
-            video_url = f"htrrtp://{MINIO_ENDPOINT}/{MINIO_BUCKET_NAME}/{video_name}"
+                # Construir la ruta completa donde el video está guardado
+                video_url = f"htrrtp://{MINIO_ENDPOINT}/{MINIO_BUCKET_NAME}/{video_name}"
 
-            # Usar split para obtener el id_solicitud
-            pId_solicitud = int(
-                video_name.split("_")[0]
-            )  # Esto dividirá el nombre y tomará el primer elemento
+                # Usar split para obtener el id_solicitud
+                pId_solicitud = int(
+                    video_name.split("_")[0]
+                )  # Esto dividirá el nombre y tomará el primer elemento
 
-            # Insertar detalles del video en la base de datos
-            insert_video_details(
-                id_solicitud=pId_solicitud,
-                tipo="VIDEO",
-                is_alive=is_alive,
-                ruta=video_url,
-            )  # Asumiendo que tienes id_solicitud disponible
+                # Insertar detalles del video en la base de datos
+                insert_video_details(
+                    id_solicitud=pId_solicitud,
+                    tipo="VIDEO",
+                    is_alive=is_alive,
+                    ruta=video_url,
+                )  # Asumiendo que tienes id_solicitud disponible
 
-        except S3Error as err:
-            logging.error(f"Failed to upload video to MinIO: {err}")
-            return jsonify({"error": "Failed to upload video"}), 500
-        except Exception as e:
-            logging.error(f"Error inserting video details: {e}")
-            return jsonify({"error": str(e)}), 500
+            except S3Error as err:
+                logging.error(f"Failed to upload video to MinIO: {err}")
+                return jsonify({"error": "Failed to upload video"}), 500
+            except Exception as e:
+                logging.error(f"Error inserting video details: {e}")
+                return jsonify({"error": str(e)}), 500
 
         # Retornar el resultado de la detección de vida
         return jsonify({"is_alive": is_alive})

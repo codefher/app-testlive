@@ -3,6 +3,9 @@ import os
 # Token key
 SECRET_KEY = "SJDFSKJDFBSDJKFBSDFBJSFKSDFNSDFSDFLKNSDFJKSDFKHSBDFKJSDFBSJKDF"
 
+# Bandera regisro MinIO 
+FLAG_MINIO = os.getenv('FLAG_MINIO', 'False').lower() == 'true'
+
 # Configuración de MinIO
 MINIO_ENDPOINT = "10.0.50.19:9040"
 MINIO_ACCESS_KEY = "user.certificacion"
