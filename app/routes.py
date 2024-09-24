@@ -8,6 +8,7 @@ from .db.queries import (
     get_multimedia,
     insert_video_details,
 )  # Asegúrate de que esta ruta de importación es correcta
+import dlib
 import os
 import cv2
 import logging
@@ -21,6 +22,9 @@ from .config import (
     MINIO_BUCKET_NAME,
     MINIO_SECURE,
 )
+
+# Cargando el detector de rostros y el predictor de puntos de referencia faciales
+detector = dlib.get_frontal_face_detector()
 
 
 def configure_routes(app, url_prefix=""):
@@ -89,31 +93,56 @@ def configure_routes(app, url_prefix=""):
         frame_sequence = []
         frame_count = 0
 
+        # Inicializar el rastreador de objetos (MOSSE en este caso)
+        tracker_initialized = False
+        tracker = cv2.TrackerKCF_create()
+
+        bbox = None
+
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
-            if frame_count % 5 == 0:  # Tomar muestra cada 5 frames
-                if is_frame_too_dark(frame):
-                    logging.debug("Frame demasiado oscuro, ajustando iluminación.")
-                    adjusted_frame = adjust_gamma(frame, gamma=2.0)
-                    gray = cv2.cvtColor(adjusted_frame, cv2.COLOR_BGR2GRAY)
-                    gray = cv2.bilateralFilter(gray, d=5, sigmaColor=75, sigmaSpace=75)
-                    frame_sequence.append(gray)
-                else:
-                    frame_sequence.append(frame)
+
+            # Si el rastreador aún no está inicializado, seleccionar una ROI y crear el rastreador
+            if not tracker_initialized:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                faces = detector(gray, 0)
+                if faces:
+                    face = faces[0]  # Usar la primera cara detectada
+                    (x, y, w, h) = (
+                        face.left(),
+                        face.top(),
+                        face.width(),
+                        face.height(),
+                    )
+                    bbox = (x, y, w, h)
+                    tracker.init(frame, bbox)
+                    tracker_initialized = True
+
+            # Actualizar la posición de la cara con el rastreador
+            if tracker_initialized:
+                ok, bbox = tracker.update(frame)
+                if ok:
+                    x, y, w, h = [int(v) for v in bbox]
+                    roi = frame[y : y + h, x : x + w]
+                    gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+
+                    # Muestrear cada 5 cuadros
+                    if frame_count % 5 == 0:
+                        frame_sequence.append(roi)
 
             frame_count += 1
 
         cap.release()
-        os.remove(video_path)  # Eliminar el archivo temporal después de su uso
-        logging.debug("Video temporal eliminado.")
+        logging.debug("Video processing finished.")
 
-        if not frame_sequence:
-            return jsonify({"error": "No se pudieron procesar frames del video."}), 400
+        # Eliminar el archivo temporal después de su uso
+        os.remove(video_path)
+        logging.debug("Temporary video removed.")
 
         is_alive = detect_blinks(frame_sequence)
-        logging.debug(f"¿El sujeto está vivo? {is_alive}")
+        logging.debug(f"Is the subject alive? {is_alive}")
         # return jsonify({"is_alive": is_alive})
 
         # Guardar el video en MinIO y obtener la URL de MinIO

@@ -1,6 +1,6 @@
 Flask
 numpy
-opencv-python-headless  # Usamos la versión headless que no requiere GUI
+opencv-contrib-python  # Usamos la versión headless que no requiere GUI
 scipy
 dlib
 PyJWT
