@@ -3,6 +3,7 @@ import dlib
 import numpy as np
 from scipy.spatial import distance as dist
 import logging
+from app import config as cfg
 
 # Configurar logging
 logging.basicConfig(level=logging.DEBUG)
@@ -12,8 +13,9 @@ detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("models/shape_predictor_68_face_landmarks.dat")
 
 # Umbral y contador para detectar parpadeo
-EYE_AR_THRESH = 0.26
-EYE_AR_CONSEC_FRAMES = 3
+EYE_AR_THRESH = cfg.EYE_AR_THRESH
+EYE_AR_CONSEC_FRAMES = cfg.EYE_AR_CONSEC_FRAMES
+logging.debug(f"Sens={cfg.BLINK_SENS}  THRESH={EYE_AR_THRESH:.3f}  FRAMES={EYE_AR_CONSEC_FRAMES}")
 
 
 def eye_aspect_ratio(eye):

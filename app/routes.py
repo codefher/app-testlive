@@ -68,7 +68,7 @@ def configure_routes(app, url_prefix=""):
             return jsonify({"error": str(e)}), 500
 
     @app.route(url_prefix + "/life-detection", methods=["POST"])
-    @token_required  # Descomenta esto si quieres activar la autenticación vía token
+    # @token_required  # Descomenta esto si quieres activar la autenticación vía token
     def process_video():
         video_file = request.files.get("video")
         if not video_file:
